@@ -13,6 +13,8 @@ type AnalyzeResponse = {
 export default function Home() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [masterInput, setMasterInput] = useState("");
+  const [masterError, setMasterError] = useState("");
 
   const [honInput, setHonInput] = useState("");
   const [honNudge, setHonNudge] = useState("");
@@ -85,6 +87,67 @@ export default function Home() {
   const [isRtbAnalyzing, setIsRtbAnalyzing] = useState(false);
   const [rtbError, setRtbError] = useState("");
   const [isRtbOpen, setIsRtbOpen] = useState(false);
+
+  async function handleApplyToAll() {
+    if (!masterInput.trim()) {
+      setMasterError("Please enter a master campaign input before applying.");
+      return;
+    }
+    setMasterError("");
+    const val = masterInput.trim();
+    setHonInput(val); setDnInput(val); setTsInput(val); setBvcsInput(val);
+    setTbicInput(val); setSoeInput(val); setBpafInput(val); setSogInput(val);
+    setBadInput(val); setRbcaInput(val); setSmpInput(val); setRtbInput(val);
+
+    setIsGeneratingAll(true);
+    setIsHonOpen(true); setHonNudge(""); setHonError("");
+    setIsDnOpen(true);  setDnNudge("");  setDnError("");
+    setIsTsOpen(true);  setTsNudge("");  setTsError("");
+    setIsBvcsOpen(true); setBvcsNudge(""); setBvcsError("");
+    setIsTbicOpen(true); setTbicNudge(""); setTbicError("");
+    setIsSoeOpen(true); setSoeNudge(""); setSoeError("");
+    setIsBpafOpen(true); setBpafNudge(""); setBpafError("");
+    setIsSogOpen(true); setSogNudge(""); setSogError("");
+    setIsBadOpen(true); setBadNudge(""); setBadError("");
+    setIsRbcaOpen(true); setRbcaNudge(""); setRbcaError("");
+    setIsSmpOpen(true); setSmpNudge(""); setSmpError("");
+    setIsRtbOpen(true); setRtbNudge(""); setRtbError("");
+
+    const agents = [
+      { endpoint: "/api/analyze-hon",  setAnalyzing: setIsHonAnalyzing,  setNudge: setHonNudge,  setError: setHonError },
+      { endpoint: "/api/analyze-dn",   setAnalyzing: setIsDnAnalyzing,   setNudge: setDnNudge,   setError: setDnError },
+      { endpoint: "/api/analyze-ts",   setAnalyzing: setIsTsAnalyzing,   setNudge: setTsNudge,   setError: setTsError },
+      { endpoint: "/api/analyze-bvcs", setAnalyzing: setIsBvcsAnalyzing, setNudge: setBvcsNudge, setError: setBvcsError },
+      { endpoint: "/api/analyze-tbic", setAnalyzing: setIsTbicAnalyzing, setNudge: setTbicNudge, setError: setTbicError },
+      { endpoint: "/api/analyze-soe",  setAnalyzing: setIsSoeAnalyzing,  setNudge: setSoeNudge,  setError: setSoeError },
+      { endpoint: "/api/analyze-bpaf", setAnalyzing: setIsBpafAnalyzing, setNudge: setBpafNudge, setError: setBpafError },
+      { endpoint: "/api/analyze",      setAnalyzing: setIsSogAnalyzing,  setNudge: setSogNudge,  setError: setSogError },
+      { endpoint: "/api/analyze-bad",  setAnalyzing: setIsBadAnalyzing,  setNudge: setBadNudge,  setError: setBadError },
+      { endpoint: "/api/analyze-rbca", setAnalyzing: setIsRbcaAnalyzing, setNudge: setRbcaNudge, setError: setRbcaError },
+      { endpoint: "/api/analyze-smp",  setAnalyzing: setIsSmpAnalyzing,  setNudge: setSmpNudge,  setError: setSmpError },
+      { endpoint: "/api/analyze-rtb",  setAnalyzing: setIsRtbAnalyzing,  setNudge: setRtbNudge,  setError: setRtbError },
+    ];
+
+    await Promise.all(agents.map(async ({ endpoint, setAnalyzing, setNudge, setError }) => {
+      setAnalyzing(true);
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ strategicInput: val }),
+        });
+        const payload = (await res.json()) as AnalyzeResponse;
+        if (!res.ok) throw new Error(payload.error || "Unable to analyze input.");
+        setNudge(payload.creativeNudge || "No response returned.");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to analyze input.");
+      } finally {
+        setAnalyzing(false);
+      }
+    }));
+
+    setIsGeneratingAll(false);
+  }
 
   const hasHonOutput = !isHonAnalyzing && !honError && !!honNudge;
   const hasDnOutput = !isDnAnalyzing && !dnError && !!dnNudge;
@@ -423,6 +486,21 @@ export default function Home() {
           <p className="header-sub--hero">
             Riff on your vision and deliver on-brand, immersive, impactful and innovative creative output.
           </p>
+        </section>
+
+        <section className="master-input-panel" aria-label="Master Campaign Input">
+          <label className="field-label master-input-label" htmlFor="master-input">Master Campaign Input</label>
+          <textarea
+            id="master-input"
+            rows={4}
+            value={masterInput}
+            onChange={(e) => { setMasterInput(e.target.value); setMasterError(""); }}
+            placeholder="Enter your master campaign brief here and click Apply to All to populate all 12 agents…"
+          />
+          {masterError && <p className="master-input-error" role="alert">{masterError}</p>}
+          <button className="apply-all-btn" type="button" onClick={handleApplyToAll}>
+            Apply to All
+          </button>
         </section>
 
         <article className={`agent-card${isHonOpen ? " agent-card--open" : ""}`} aria-label="Human Override Agent">
